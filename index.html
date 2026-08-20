@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>Time Tracker</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  :root {
+    --bg:#0f172a; --surface:#1e293b; --surface2:#334155; --border:#475569;
+    --text:#f1f5f9; --text-dim:#94a3b8; --accent:#3b82f6; --green:#22c55e;
+    --red:#ef4444; --amber:#f59e0b; --orange:#f97316; --purple:#a855f7; --radius:10px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex}
+  .sidebar{width:240px;background:var(--surface);border-right:1px solid var(--border);padding:20px 14px;display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+  .sidebar h1{font-size:1.1rem;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .nav-btn{background:transparent;border:1px solid transparent;color:var(--text-dim);padding:10px 14px;border-radius:var(--radius);cursor:pointer;text-align:left;font-size:.88rem;transition:all .15s;display:flex;align-items:center;gap:10px}
+  .nav-btn:hover{background:var(--surface2);color:var(--text)}
+  .nav-btn.active{background:var(--accent);color:#fff}
+  .nav-btn.admin-btn{color:var(--purple)}
+  .nav-btn.admin-btn.active{background:var(--purple);color:#fff}
+  .nav-icon{font-size:1.1rem;width:20px;text-align:center}
+  .sidebar-footer{margin-top:auto;padding-top:14px;border-top:1px solid var(--border);font-size:.72rem;color:var(--text-dim)}
+  .sidebar-footer .time{font-size:1.05rem;font-weight:600;color:var(--text)}
+  .main{flex:1;padding:28px 36px;overflow-y:auto;max-height:100vh}
+  .page{display:none}.page.active{display:block}
+  .header-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;flex-wrap:wrap;gap:10px}
+  .header-bar h2{font-size:1.4rem;font-weight:600}
+  .btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+  .btn-in{background:var(--green);color:#000}.btn-in:hover{filter:brightness(1.15)}
+  .btn-out{background:var(--red);color:#fff}.btn-out:hover{filter:brightness(1.15)}
+  .btn-break{background:var(--amber);color:#000}.btn-break:hover{filter:brightness(1.15)}
+  .btn-admin{background:var(--purple);color:#fff}.btn-admin:hover{filter:brightness(1.15)}
+  .btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}.btn-secondary:hover{background:var(--border)}
+  .btn-sm{padding:5px 10px;font-size:.74rem}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px}
+  .emp-card{border:2px solid var(--border)}
+  .emp-card.clocked-in{border-color:var(--green)}.emp-card.on-break{border-color:var(--amber)}.emp-card.overtime{border-color:var(--orange)}
+  .status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+  .status-dot.in{background:var(--green);box-shadow:0 0 8px var(--green)}
+  .status-dot.break{background:var(--amber);box-shadow:0 0 8px var(--amber);animation:pulse 1s infinite}
+  .status-dot.out{background:var(--text-dim)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+  .info-row{font-size:.78rem;color:var(--text-dim);margin-bottom:2px}.info-row strong{color:var(--text)}
+  .table-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--border)}
+  table{width:100%;border-collapse:collapse;font-size:.82rem}
+  th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}
+  th{background:var(--surface);font-weight:600}tr:hover{background:var(--surface2)}
+  .tag-in{color:var(--green)}.tag-out{color:var(--red)}.tag-break{color:var(--amber);font-size:.74rem}
+  .badge{padding:2px 10px;border-radius:12px;font-size:.72rem;font-weight:600}
+  .badge-pending{background:rgba(245,158,11,.15);color:var(--amber)}
+  .badge-approved{background:rgba(34,197,94,.15);color:var(--green)}
+  .badge-denied{background:rgba(239,68,68,.15);color:var(--red)}
+  .badge-vacation{background:rgba(59,130,246,.15);color:var(--accent)}
+  .badge-sick{background:rgba(239,68,68,.15);color:var(--red)}
+  .badge-personal{background:rgba(168,85,247,.15);color:var(--purple)}
+  .overtime-banner{background:rgba(249,115,22,.15);border:1px solid var(--orange);border-radius:var(--radius);padding:10px 16px;margin-bottom:14px;font-size:.84rem}
+  .form-group{margin-bottom:12px}
+  .form-group label{display:block;font-size:.8rem;margin-bottom:4px;color:var(--text-dim)}
+  .form-group input,.form-group select{width:100%;background:var(--surface2);color:var(--text);border:1px solid var(--border);padding:9px 12px;border-radius:6px;font-size:.88rem}
+  .form-row{display:flex;gap:10px}.form-row .form-group{flex:1}
+  .emp-chip{display:inline-flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--border);padding:4px 10px;border-radius:16px;font-size:.8rem}
+  .toast{position:fixed;bottom:28px;right:28px;background:var(--surface);border:1px solid var(--green);color:var(--green);padding:10px 22px;border-radius:var(--radius);font-weight:600;z-index:100;animation:slideIn .3s ease,fadeOut .3s 2.5s forwards}
+  @keyframes slideIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+  @keyframes fadeOut{to{opacity:0}}
+  .welcome-box{text-align:center;padding:40px 20px}.welcome-box h2{font-size:1.6rem;margin-bottom:8px}.welcome-box p{color:var(--text-dim);margin-bottom:20px}
+  .modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center}
+  @media(max-width:768px){
+    body{flex-direction:column}.sidebar{width:100%;flex-direction:row;overflow-x:auto;padding:10px}
+    .sidebar h1,.sidebar-footer{display:none}.nav-btn{white-space:nowrap;padding:8px 10px;font-size:.78rem}
+    .main{padding:16px 12px}
+  }
+</style>
+</head>
+<body>
+<aside class="sidebar">
+  <h1>⏱️ TimeTracker</h1>
+  <button class="nav-btn active" data-page="clock"><span class="nav-icon">🕐</span> Clock In/Out</button>
+  <button class="nav-btn" data-page="logs"><span class="nav-icon">📋</span> Time Logs</button>
+  <button class="nav-btn" data-page="pto"><span class="nav-icon">🏖️</span> PTO</button>
+  <button class="nav-btn admin-btn" data-page="admin" id="nav-admin"><span class="nav-icon">🔒</span> Admin</button>
+  <button class="nav-btn admin-btn" data-page="reports" id="nav-reports" style="display:none;"><span class="nav-icon">📊</span> Reports</button>
+  <div class="sidebar-footer">
+    <div class="time" id="sidebar-clock"></div>
+    <div id="sidebar-date"></div>
+    <div style="margin-top:4px;" id="sidebar-user"></div>
+  </div>
+</aside>
+
+<main class="main">
+
+  <!-- LOGIN -->
+  <section class="page active" id="page-login">
+    <div class="welcome-box">
+      <h2>👋 Employee Login</h2>
+      <p>Sign in with your company email and password.</p>
+      <div style="max-width:360px;margin:0 auto;text-align:left;">
+        <div class="card">
+          <div class="form-group"><label>Email</label><input type="email" id="login-email" placeholder="you@company.com" autocomplete="username"></div>
+          <div class="form-group"><label>Password</label><input type="password" id="login-pass" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+          <button class="btn btn-in" onclick="doLogin()" style="width:100%;">🔓 Log In</button>
+          <div style="font-size:.72rem;color:var(--text-dim);margin-top:10px;text-align:center;">Don't have an account? Ask your manager to add you.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CLOCK -->
+  <section class="page" id="page-clock">
+    <div class="header-bar">
+      <h2>Clock In / Out</h2>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="badge" id="global-status">Loading…</span>
+        <button class="btn btn-secondary btn-sm" onclick="openPasswordModal()">🔑 Password</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportCSV()">📥 Export</button>
+        <button class="btn btn-out btn-sm" onclick="signOut()">🚪 Sign Out</button>
+      </div>
+    </div>
+    <div id="overtime-alerts"></div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
+      <div class="card emp-card" id="clock-card" style="flex:1;min-width:300px;max-width:520px;">
+        <div style="font-size:1.1rem;font-weight:600;" id="clock-name">—</div>
+        <div class="info-row" id="clock-dept">—</div>
+        <div style="display:flex;align-items:center;gap:8px;margin:10px 0;font-size:.85rem;">
+          <div class="status-dot out" id="clock-dot"></div><span id="clock-status">Clocked Out</span>
+        </div>
+        <div class="info-row" id="clock-since">No active session</div>
+        <div class="info-row" id="clock-worked" style="font-size:1.1rem;font-weight:700;"></div>
+        <div id="clock-current-task" style="margin-top:10px;padding:10px;background:var(--surface2);border-radius:6px;font-size:.82rem;display:none;"></div>
+        <div class="form-group" style="margin-top:12px;"><label>Cost Code</label><select id="clock-cost"></select></div>
+        <div class="form-group"><label>What are you working on?</label><input type="text" id="clock-work" placeholder="e.g. Wiring panel at K196"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button class="btn btn-in" id="btn-in" onclick="clockIn()">▶️ Clock In</button>
+          <button class="btn btn-out" id="btn-out" onclick="clockOut()" disabled>⏹️ Clock Out</button>
+          <button class="btn btn-break" id="btn-break" onclick="toggleBreak()" disabled>☕ Break</button>
+        </div>
+        <button class="btn btn-admin" id="btn-newtask" onclick="newTask()" disabled style="width:100%;margin-top:8px;">➕ Switch to New Task</button>
+      </div>
+
+      <!-- PERSONAL TASK LIST -->
+      <div class="card" style="flex:1;min-width:300px;max-width:520px;">
+        <h4 style="margin-bottom:12px;">📝 My Tasks</h4>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <input type="text" id="task-input" placeholder="Add a task…" style="flex:1;background:var(--surface2);color:var(--text);border:1px solid var(--border);padding:9px 12px;border-radius:6px;font-size:.88rem;" onkeydown="if(event.key==='Enter')addTask()">
+          <button class="btn btn-in btn-sm" onclick="addTask()" style="flex:none;">➕ Add</button>
+        </div>
+        <div id="task-list" style="max-height:380px;overflow-y:auto;"></div>
+        <div id="task-empty" style="text-align:center;padding:20px;color:var(--text-dim);font-size:.82rem;">No tasks yet. Add one above.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LOGS -->
+  <section class="page" id="page-logs">
+    <div class="header-bar">
+      <h2>Time Logs</h2>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="badge badge-approved" id="logs-emp-name"></span>
+        <button class="btn btn-secondary btn-sm" onclick="exportCSV()">📥 Export</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+      <input type="date" id="log-from" onchange="renderLogs()" style="background:var(--surface);color:var(--text);border:1px solid var(--border);padding:7px 10px;border-radius:6px;">
+      <input type="date" id="log-to" onchange="renderLogs()" style="background:var(--surface);color:var(--text);border:1px solid var(--border);padding:7px 10px;border-radius:6px;">
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('log-from').value='';document.getElementById('log-to').value='';renderLogs();">Clear</button>
+    </div>
+    <div class="table-wrap"><table><thead><tr>
+      <th>Date</th><th>Clock In</th><th>Clock Out</th><th>Breaks</th><th>Work Time</th><th>Cost Code</th><th>Working On</th>
+    </tr></thead><tbody id="log-tbody"></tbody></table></div>
+    <div id="no-logs" style="display:none;text-align:center;padding:40px;color:var(--text-dim);">📭 No entries.</div>
+  </section>
+
+  <!-- PTO -->
+  <section class="page" id="page-pto">
+    <div class="header-bar"><h2>PTO</h2></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div class="card">
+        <h4 style="margin-bottom:12px;">📝 Request PTO</h4>
+        <div class="form-row">
+          <div class="form-group"><label>Start Date</label><input type="date" id="pto-start"></div>
+          <div class="form-group"><label>End Date</label><input type="date" id="pto-end"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Hours</label><input type="number" id="pto-hours" min="0.5" step="0.5" placeholder="8"></div>
+          <div class="form-group"><label>Type</label><select id="pto-type"><option value="vacation">Vacation</option><option value="sick">Sick</option><option value="personal">Personal</option></select></div>
+        </div>
+        <div class="form-group"><label>Notes</label><input type="text" id="pto-reason" placeholder="Optional"></div>
+        <button class="btn btn-in" onclick="submitPTO()" style="width:100%;">📩 Submit</button>
+      </div>
+      <div class="card">
+        <h4 style="margin-bottom:12px;">📊 Balance</h4>
+        <div style="font-size:2rem;font-weight:700;color:var(--accent);" id="pto-remaining">—</div>
+        <div style="font-size:.8rem;color:var(--text-dim);margin-top:4px;" id="pto-detail"></div>
+      </div>
+    </div>
+    <div style="margin-top:20px;">
+      <h4 style="margin-bottom:10px;">PTO History</h4>
+      <div class="table-wrap"><table><thead><tr>
+        <th>Dates</th><th>Hours</th><th>Type</th><th>Status</th><th>Notes</th>
+      </tr></thead><tbody id="pto-tbody"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- ADMIN -->
+  <section class="page" id="page-admin">
+    <div class="header-bar">
+      <h2>🔒 Admin Panel</h2>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-secondary btn-sm" onclick="adminExportCSV()">📥 CSV All</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h4 style="margin-bottom:12px;">👥 Employees</h4>
+      <div class="form-row" style="margin-bottom:12px;">
+        <div class="form-group"><label>Name</label><input type="text" id="admin-emp-name"></div>
+        <div class="form-group"><label>Department</label><input type="text" id="admin-emp-dept"></div>
+      </div>
+      <div class="form-row" style="margin-bottom:12px;">
+        <div class="form-group"><label>Email</label><input type="email" id="admin-emp-email" placeholder="name@company.com"></div>
+        <div class="form-group"><label>Temp Password</label><input type="text" id="admin-emp-pass"></div>
+      </div>
+      <button class="btn btn-in btn-sm" onclick="adminAddEmployee()">➕ Add Employee</button>
+      <div id="admin-roster" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h4 style="margin-bottom:12px;">🕐 Clock In / Out (Admin)</h4>
+      <div style="margin-bottom:10px;">
+        <select id="admin-clock-filter" onchange="adminClockGrid()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);padding:7px 12px;border-radius:6px;"><option value="all">All Employees</option></select>
+      </div>
+      <div class="employee-grid" id="admin-clock-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h4 style="margin-bottom:12px;">✏️ Manual Time Entry</h4>
+      <div class="form-row">
+        <div class="form-group"><label>Employee</label><select id="admin-entry-emp"></select></div>
+        <div class="form-group"><label>Date</label><input type="date" id="admin-entry-date"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Clock In</label><input type="time" id="admin-entry-in"></div>
+        <div class="form-group"><label>Clock Out</label><input type="time" id="admin-entry-out"></div>
+      </div>
+      <div class="form-group"><label>Cost Code</label><select id="admin-entry-cost"></select></div>
+      <button class="btn btn-admin btn-sm" onclick="adminManualEntry()">💾 Save Entry</button>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h4 style="margin-bottom:12px;">🏖️ PTO Requests</h4>
+      <div id="admin-pto-queue" style="margin-bottom:12px;"></div>
+      <div style="margin-bottom:8px;font-size:.85rem;">👥 Allocations (click to edit)</div>
+      <div id="admin-pto-allocations"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h4 style="margin-bottom:12px;">🏷️ Cost Codes</h4>
+      <div class="form-row" style="margin-bottom:12px;">
+        <div class="form-group"><label>Job #</label><input type="text" id="admin-cost-job"></div>
+        <div class="form-group"><label>Phase</label><input type="text" id="admin-cost-phase"></div>
+        <div class="form-group"><label>Name</label><input type="text" id="admin-cost-name"></div>
+      </div>
+      <button class="btn btn-in btn-sm" onclick="adminAddCostCode()">➕ Add</button>
+      <div id="admin-cost-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h4 style="margin-bottom:12px;">📋 All Time Entries</h4>
+      <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+        <select id="admin-filter-emp" onchange="adminRenderEntries()"><option value="all">All Employees</option></select>
+        <input type="date" id="admin-filter-from" onchange="adminRenderEntries()">
+        <input type="date" id="admin-filter-to" onchange="adminRenderEntries()">
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('admin-filter-emp').value='all';document.getElementById('admin-filter-from').value='';document.getElementById('admin-filter-to').value='';adminRenderEntries();">Clear</button>
+      </div>
+      <div class="table-wrap"><table><thead><tr>
+        <th>Employee</th><th>Date</th><th>In</th><th>Out</th><th>Work</th><th>Cost</th><th>Working On</th><th></th>
+      </tr></thead><tbody id="admin-entries-tbody"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- REPORTS -->
+  <section class="page" id="page-reports">
+    <div class="header-bar">
+      <h2>📊 Reports</h2>
+      <button class="btn btn-secondary btn-sm" onclick="reportExportCSV()">📥 Export CSV</button>
+    </div>
+    <div class="card" style="margin-bottom:16px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+        <button class="btn btn-secondary btn-sm" onclick="reportRange('today')">Today</button>
+        <button class="btn btn-secondary btn-sm" onclick="reportRange('week')">This Week</button>
+        <button class="btn btn-secondary btn-sm" onclick="reportRange('lastweek')">Last Week</button>
+        <button class="btn btn-secondary btn-sm" onclick="reportRange('month')">This Month</button>
+        <button class="btn btn-secondary btn-sm" onclick="reportRange('lastmonth')">Last Month</button>
+        <button class="btn btn-secondary btn-sm" onclick="reportRange('year')">YTD</button>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+        <div class="form-group" style="flex:1;min-width:140px;"><label>From</label><input type="date" id="report-from"></div>
+        <div class="form-group" style="flex:1;min-width:140px;"><label>To</label><input type="date" id="report-to"></div>
+        <div class="form-group" style="flex:1;min-width:160px;"><label>Employee</label><select id="report-emp"><option value="all">All Employees</option></select></div>
+        <div class="form-group" style="flex:1;min-width:160px;"><label>Project (Cost Code)</label><select id="report-proj"><option value="all">All Projects</option></select></div>
+        <button class="btn btn-in" onclick="renderReport()" style="flex:none;">🔍 Run Report</button>
+      </div>
+    </div>
+
+    <div id="report-summary" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;"></div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h4>📈 Chart</h4>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn btn-in btn-sm" id="chart-btn-proj" onclick="setChartMode('proj')">By Project</button>
+          <button class="btn btn-secondary btn-sm" id="chart-btn-emp" onclick="setChartMode('emp')">By Employee</button>
+          <button class="btn btn-secondary btn-sm" id="chart-btn-pie" onclick="setChartMode('pie')">Project Share %</button>
+        </div>
+      </div>
+      <div style="position:relative;height:340px;"><canvas id="report-chart"></canvas></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h4 style="margin-bottom:12px;">By Project</h4>
+      <div class="table-wrap"><table><thead><tr>
+        <th>Project</th><th>Total Hours</th><th>Workers</th><th>Employee Breakdown</th>
+      </tr></thead><tbody id="report-proj-tbody"></tbody></table></div>
+    </div>
+
+    <div class="card">
+      <h4 style="margin-bottom:12px;">By Employee</h4>
+      <div class="table-wrap"><table><thead><tr>
+        <th>Employee</th><th>Total Hours</th><th>Projects</th><th>Project Breakdown</th>
+      </tr></thead><tbody id="report-emp-tbody"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- EDIT MODAL -->
+  <div class="modal" id="edit-modal">
+    <div class="card" style="width:90%;max-width:440px;max-height:90vh;overflow-y:auto;">
+      <h4 style="margin-bottom:14px;">✏️ Edit Entry</h4>
+      <div class="form-group"><label>Employee</label><select id="edit-entry-emp"></select></div>
+      <div class="form-group"><label>Date</label><input type="date" id="edit-entry-date"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Clock In</label><input type="time" id="edit-entry-in"></div>
+        <div class="form-group"><label>Clock Out</label><input type="time" id="edit-entry-out"></div>
+      </div>
+      <div class="form-group"><label>Cost Code</label><select id="edit-entry-cost"></select></div>
+      <div style="display:flex;gap:8px;margin-top:16px;">
+        <button class="btn btn-in" onclick="adminSaveEdit()" style="flex:1;">💾 Save</button>
+        <button class="btn btn-secondary" onclick="closeEditModal()" style="flex:1;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHANGE PASSWORD MODAL -->
+  <div class="modal" id="password-modal">
+    <div class="card" style="width:90%;max-width:400px;">
+      <h4 style="margin-bottom:14px;">🔑 Change Password</h4>
+      <div class="form-group"><label>New Password</label><input type="password" id="pw-new" autocomplete="new-password"></div>
+      <div class="form-group"><label>Confirm New Password</label><input type="password" id="pw-confirm" autocomplete="new-password" onkeydown="if(event.key==='Enter')changePassword()"></div>
+      <div style="display:flex;gap:8px;margin-top:16px;">
+        <button class="btn btn-in" onclick="changePassword()" style="flex:1;">💾 Save</button>
+        <button class="btn btn-secondary" onclick="closePasswordModal()" style="flex:1;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+<div id="toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="config.js"></script>
+<script>
+// ── Supabase init ──────────────────────────────────────────
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let ME = null;       // auth user
+let MY_PROFILE = null;
+
+// ── Helpers ───────────────────────────────────────────────
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function toast(msg,color='green'){const c=document.getElementById('toast-container');const el=document.createElement('div');el.className='toast';el.style.borderColor=`var(--${color})`;el.style.color=`var(--${color})`;el.textContent=msg;c.appendChild(el);setTimeout(()=>el.remove(),3000)}
+function fmtTime(iso){return iso?new Date(iso).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}) :'--'}
+function fmtDate(iso){return iso?new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric'}) :'--'}
+function fmtDur(secs){secs=Math.max(0,secs);return `${Math.floor(secs/3600)}h ${String(Math.floor((secs%3600)/60)).padStart(2,'0')}m`}
+function workSecs(entry){const end=entry.clock_out?new Date(entry.clock_out):new Date();return Math.max(0,(end-new Date(entry.clock_in))/1000)}
+function costLabel(c){return c?`${c.job}-${c.phase} ${c.name}`:'—'}
+function costCodeByValue(v){if(!v)return null;return (window._costCodes||[]).find(c=>(c.job+'-'+c.phase)===v)}
+function statusBadge(s){return s==='approved'?'badge-approved':s==='rejected'?'badge-denied':'badge-pending'}
+
+// ── State cache ───────────────────────────────────────────
+let _profiles=[], _costCodes=[], _myOpenEntry=null, _myOpenBreak=null, _currentSegment=null;
+let _reportChart=null, _chartMode='proj', _lastProjMap=null, _lastEmpMap=null;
+
+async function refreshProfiles(){const{data,error}=await sb.from('profiles').select('*').order('name');if(!error)_profiles=data||[]}
+async function refreshCostCodes(){const{data,error}=await sb.from('cost_codes').select('*').order('job');if(!error){_costCodes=data||[];window._costCodes=_costCodes}}
+
+function costCodeOptions(selected){return '<option value="">Select cost code…</option>'+_costCodes.map(c=>`<option value="${c.job}-${c.phase}" ${(c.job+'-'+c.phase)===selected?'selected':''}>${c.job}-${c.phase} ${c.name}</option>`).join('')}
+
+// ── Auth ──────────────────────────────────────────────────
+async function init(){
+  const{data}=await sb.auth.getSession();
+  if(data.session){ME=data.session.user;await loadApp()}else{showPage('login')}
+  sb.auth.onAuthStateChange(async(e,session)=>{ if(session){ME=session.user;await loadApp()}else{ME=null;MY_PROFILE=null;showPage('login')} });
+}
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-pass').value;
+  if(!email||!pass)return toast('Enter email and password','amber');
+  const{error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error)return toast('❌ '+error.message,'red');
+}
+async function signOut(){await sb.auth.signOut()}
+
+// ── Change Password ───────────────────────────────────────
+function openPasswordModal(){document.getElementById('pw-new').value='';document.getElementById('pw-confirm').value='';document.getElementById('password-modal').style.display='flex'}
+function closePasswordModal(){document.getElementById('password-modal').style.display='none'}
+async function changePassword(){
+  const pw=document.getElementById('pw-new').value;
+  const cf=document.getElementById('pw-confirm').value;
+  if(pw.length<6)return toast('Password must be at least 6 characters','amber');
+  if(pw!==cf)return toast('Passwords do not match','red');
+  const{error}=await sb.auth.updateUser({password:pw});
+  if(error)return toast('❌ '+error.message,'red');
+  closePasswordModal();
+  toast('🔑 Password updated');
+}
+
+async function loadApp(){
+  await refreshProfiles();
+  await refreshCostCodes();
+  MY_PROFILE=_profiles.find(p=>p.id===ME.id)||null;
+  // Hide admin nav if not admin
+  const isAdmin=MY_PROFILE&&MY_PROFILE.is_admin;
+  document.getElementById('nav-admin').style.display=isAdmin?'':'none';
+  document.getElementById('nav-reports').style.display=isAdmin?'':'none';
+  document.getElementById('sidebar-user').textContent=MY_PROFILE?MY_PROFILE.name:'';
+  if(isAdmin){showPage('admin');renderAdmin();}
+  else{showPage('clock');refreshClock();}
+}
+
+// ── Navigation ────────────────────────────────────────────
+function showPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  const btn=document.querySelector(`[data-page="${name}"]`);if(btn)btn.classList.add('active');
+  if(name==='clock')refreshClock();
+  if(name==='logs')renderLogs();
+  if(name==='pto')refreshPTO();
+  if(name==='admin'&&MY_PROFILE&&MY_PROFILE.is_admin)renderAdmin();
+  if(name==='reports'){initReportFilters();renderReport();}
+}
+document.querySelectorAll('.nav-btn').forEach(b=>b.addEventListener('click',()=>{
+  if(b.dataset.page==='admin'&&!(MY_PROFILE&&MY_PROFILE.is_admin)){toast('Admin access only','red');return}
+  if(b.dataset.page==='reports'&&!(MY_PROFILE&&MY_PROFILE.is_admin)){toast('Admin access only','red');return}
+  showPage(b.dataset.page);
+}));
+
+// ── Reports ───────────────────────────────────────────────
+function costLabelFromVal(v){if(!v)return '(none)';const c=costCodeByValue(v);return c?`${c.job}-${c.phase} ${c.name}`:v}
+function initReportFilters(){
+  // Default date range = current month
+  const now=new Date();
+  const first=new Date(now.getFullYear(),now.getMonth(),1);
+  document.getElementById('report-from').value=first.toISOString().slice(0,10);
+  document.getElementById('report-to').value=now.toISOString().slice(0,10);
+  const empSel=document.getElementById('report-emp');
+  empSel.innerHTML='<option value="all">All Employees</option>'+_profiles.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  const projSel=document.getElementById('report-proj');
+  projSel.innerHTML='<option value="all">All Projects</option>'+_costCodes.map(c=>`<option value="${c.job}-${c.phase}">${c.job}-${c.phase} ${c.name}</option>`).join('');
+}
+function isoDateLocal(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function reportRange(range){
+  const now=new Date();
+  let from, to;
+  if(range==='today'){from=now;to=now;}
+  else if(range==='week'){
+    const day=now.getDay(); const sun=new Date(now); sun.setDate(now.getDate()-day);
+    from=sun; to=now;
+  }else if(range==='lastweek'){
+    const day=now.getDay();
+    const prevSun=new Date(now); prevSun.setDate(now.getDate()-day-7);
+    const prevSat=new Date(now); prevSat.setDate(now.getDate()-day-1);
+    from=prevSun; to=prevSat;
+  }else if(range==='month'){from=new Date(now.getFullYear(),now.getMonth(),1);to=now;}
+  else if(range==='lastmonth'){from=new Date(now.getFullYear(),now.getMonth()-1,1);to=new Date(now.getFullYear(),now.getMonth(),0);}
+  else if(range==='year'){from=new Date(now.getFullYear(),0,1);to=now;}
+  else return;
+  document.getElementById('report-from').value=isoDateLocal(from);
+  document.getElementById('report-to').value=isoDateLocal(to);
+  renderReport();
+}
+async function renderReport(){
+  const from=document.getElementById('report-from').value;
+  const to=document.getElementById('report-to').value;
+  const empF=document.getElementById('report-emp').value;
+  const projF=document.getElementById('report-proj').value;
+  if(!from||!to)return toast('Pick a date range','amber');
+
+  // Fetch all entries in range with segments + employee name
+  let q=sb.from('time_entries').select('*, profiles(name), task_segments(*)').gte('clock_in',from+'T00:00:00').lte('clock_in',to+'T23:59:59').order('clock_in',{ascending:true}).limit(5000);
+  if(empF!=='all')q=q.eq('emp_id',empF);
+  const{data,error}=await q;
+  if(error){toast('❌ '+error.message,'red');return}
+
+  // Build per-project and per-employee aggregates from task segments (fallback to entry cost_code)
+  const projMap={}; // key = cost_code -> {secs, workers:Set, empBreakdown:{name:secs}}
+  const empMap={};  // key = emp_id -> {name, secs, projects:Set, projBreakdown:{cost:secs}}
+  let totalSecs=0;
+  const empNameOf={}; _profiles.forEach(p=>empNameOf[p.id]=p.name);
+
+  for(const e of (data||[])){
+    const ename=e.profiles?e.profiles.name:(empNameOf[e.emp_id]||e.emp_id);
+    const segs=(e.task_segments||[]).filter(s=>s.start_time);
+    if(segs.length){
+      for(const s of segs){
+        const end=s.end_time||e.clock_out||new Date().toISOString();
+        const secs=Math.max(0,(new Date(end)-new Date(s.start_time))/1000);
+        if(secs<=0)continue;
+        const cost=s.cost_code||e.cost_code||'(none)';
+        if(projF!=='all'&&cost!==projF)continue;
+        totalSecs+=secs;
+        // project agg
+        if(!projMap[cost])projMap[cost]={secs:0,workers:new Set(),empBreakdown:{}};
+        projMap[cost].secs+=secs;
+        projMap[cost].workers.add(e.emp_id);
+        projMap[cost].empBreakdown[ename]=(projMap[cost].empBreakdown[ename]||0)+secs;
+        // employee agg
+        if(!empMap[e.emp_id])empMap[e.emp_id]={name:ename,secs:0,projects:new Set(),projBreakdown:{}};
+        empMap[e.emp_id].secs+=secs;
+        empMap[e.emp_id].projects.add(cost);
+        empMap[e.emp_id].projBreakdown[cost]=(empMap[e.emp_id].projBreakdown[cost]||0)+secs;
+      }
+    }else{
+      // No segments: attribute the whole entry to its cost_code
+      const secs=workSecs(e);
+      if(secs<=0)continue;
+      const cost=e.cost_code||'(none)';
+      if(projF!=='all'&&cost!==projF)continue;
+      totalSecs+=secs;
+      if(!projMap[cost])projMap[cost]={secs:0,workers:new Set(),empBreakdown:{}};
+      projMap[cost].secs+=secs;
+      projMap[cost].workers.add(e.emp_id);
+      projMap[cost].empBreakdown[ename]=(projMap[cost].empBreakdown[ename]||0)+secs;
+      if(!empMap[e.emp_id])empMap[e.emp_id]={name:ename,secs:0,projects:new Set(),projBreakdown:{}};
+      empMap[e.emp_id].secs+=secs;
+      empMap[e.emp_id].projects.add(cost);
+      empMap[e.emp_id].projBreakdown[cost]=(empMap[e.emp_id].projBreakdown[cost]||0)+secs;
+    }
+  }
+
+  // Summary cards
+  const summary=document.getElementById('report-summary');
+  const uniqEmps=new Set(); const uniqProjs=new Set();
+  Object.values(projMap).forEach(p=>Object.keys(p.empBreakdown).forEach(()=>{}));
+  for(const k in empMap){uniqEmps.add(empMap[k].name)}
+  for(const k in projMap){uniqProjs.add(k)}
+  summary.innerHTML=
+    `<div class="card" style="flex:1;min-width:150px;"><div style="color:var(--text-dim);font-size:.8rem">Total Hours</div><div style="font-size:1.6rem;font-weight:700;color:var(--accent)">${fmtDur(totalSecs)}</div></div>`+
+    `<div class="card" style="flex:1;min-width:150px;"><div style="color:var(--text-dim);font-size:.8rem">Employees</div><div style="font-size:1.6rem;font-weight:700">${uniqEmps.size}</div></div>`+
+    `<div class="card" style="flex:1;min-width:150px;"><div style="color:var(--text-dim);font-size:.8rem">Projects</div><div style="font-size:1.6rem;font-weight:700">${uniqProjs.size}</div></div>`;
+
+  // By project table
+  const projTbody=document.getElementById('report-proj-tbody');
+  const projRows=Object.entries(projMap).sort((a,b)=>b[1].secs-a[1].secs);
+  projTbody.innerHTML=projRows.length?projRows.map(([cost,p])=>{
+    const bd=Object.entries(p.empBreakdown).sort((a,b)=>b[1]-a[1]).map(([n,s])=>`<div style="font-size:.75rem;margin:1px 0"><span style="color:var(--text-dim)">${n}</span>: ${fmtDur(s)}</div>`).join('');
+    return `<tr><td><strong>${costLabelFromVal(cost)}</strong></td><td><strong>${fmtDur(p.secs)}</strong></td><td>${p.workers.size}</td><td>${bd}</td></tr>`;
+  }).join(''):'<tr><td colspan="4" style="color:var(--text-dim)">No data.</td></tr>';
+
+  // By employee table
+  const empTbody=document.getElementById('report-emp-tbody');
+  const empRows=Object.values(empMap).sort((a,b)=>b.secs-a.secs);
+  empTbody.innerHTML=empRows.length?empRows.map(e=>{
+    const bd=Object.entries(e.projBreakdown).sort((a,b)=>b[1]-a[1]).map(([c,s])=>`<div style="font-size:.75rem;margin:1px 0"><span style="color:var(--text-dim)">${costLabelFromVal(c)}</span>: ${fmtDur(s)}</div>`).join('');
+    return `<tr><td><strong>${e.name}</strong></td><td><strong>${fmtDur(e.secs)}</strong></td><td>${e.projects.size}</td><td>${bd}</td></tr>`;
+  }).join(''):'<tr><td colspan="4" style="color:var(--text-dim)">No data.</td></tr>';
+
+  // Store for chart + draw
+  _lastProjMap=projMap; _lastEmpMap=empMap;
+  drawChart();
+}
+
+// ── Chart ─────────────────────────────────────────────────
+function setChartMode(mode){
+  _chartMode=mode;
+  document.getElementById('chart-btn-proj').className='btn btn-sm '+(mode==='proj'?'btn-in':'btn-secondary');
+  document.getElementById('chart-btn-emp').className='btn btn-sm '+(mode==='emp'?'btn-in':'btn-secondary');
+  document.getElementById('chart-btn-pie').className='btn btn-sm '+(mode==='pie'?'btn-in':'btn-secondary');
+  drawChart();
+}
+function drawChart(){
+  const canvas=document.getElementById('report-chart');
+  if(!canvas||typeof Chart==='undefined')return;
+  if(_reportChart){_reportChart.destroy();_reportChart=null;}
+
+  const toHrs=s=>s/3600;
+
+  // Pie mode
+  if(_chartMode==='pie'&&_lastProjMap){
+    const arr=Object.entries(_lastProjMap).sort((a,b)=>b[1].secs-a[1].secs);
+    const labels=arr.map(([c])=>costLabelFromVal(c));
+    const values=arr.map(([,p])=>toHrs(p.secs));
+    const total=values.reduce((a,b)=>a+b,0)||1;
+    const palette=['#3b82f6','#22c55e','#f59e0b','#a855f7','#ef4444','#14b8a6','#f97316','#8b5cf6','#ec4899','#84cc16','#06b6d4','#eab308','#6366f1','#10b981','#f43f5e'];
+    _reportChart=new Chart(canvas,{
+      type:'doughnut',
+      data:{labels,datasets:[{data:values,backgroundColor:palette,borderColor:'#0f172a',borderWidth:2}]},
+      options:{
+        responsive:true,maintainAspectRatio:false,cutout:'45%',
+        plugins:{
+          legend:{position:'right',labels:{color:'#e2e8f0',font:{size:11},boxWidth:12,padding:8}},
+          tooltip:{callbacks:{label:c=>{
+            const v=c.parsed; const pct=((v/total)*100).toFixed(1);
+            return ` ${c.label}: ${v.toFixed(1)} hrs (${pct}%)`;
+          }}}
+        }
+      }
+    });
+    return;
+  }
+
+  // Bar modes
+  let labels=[], values=[];
+  if(_chartMode==='emp'&&_lastEmpMap){
+    const arr=Object.values(_lastEmpMap).sort((a,b)=>b.secs-a.secs);
+    labels=arr.map(e=>e.name);
+    values=arr.map(e=>toHrs(e.secs));
+  }else if(_lastProjMap){
+    const arr=Object.entries(_lastProjMap).sort((a,b)=>b[1].secs-a[1].secs);
+    labels=arr.map(([c])=>costLabelFromVal(c));
+    values=arr.map(([,p])=>toHrs(p.secs));
+  }
+  if(!labels.length){
+    const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);
+    return;
+  }
+  const isProj=_chartMode==='proj';
+  _reportChart=new Chart(canvas,{
+    type:'bar',
+    data:{labels,datasets:[{label:isProj?'Hours by Project':'Hours by Employee',data:values,
+      backgroundColor:isProj?'#3b82f6':'#22c55e',borderRadius:6,barThickness:Math.max(14,Math.min(34,600/labels.length))}]},
+    options:{
+      indexAxis:'y',
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:c=>c.parsed.x.toFixed(1)+' hrs'}}},
+      scales:{
+        x:{title:{display:true,text:'Hours'},grid:{color:'rgba(148,163,184,0.15)'},ticks:{color:'#94a3b8'}},
+        y:{grid:{display:false},ticks:{color:'#e2e8f0',font:{size:11}}}
+      }
+    }
+  });
+}
+function reportExportCSV(){ downloadFromReport().catch(e=>toast('❌ '+e.message,'red')); }
+async function downloadFromReport(){
+  const from=document.getElementById('report-from').value;
+  const to=document.getElementById('report-to').value;
+  const empF=document.getElementById('report-emp').value;
+  const projF=document.getElementById('report-proj').value;
+  let q=sb.from('time_entries').select('*, profiles(name), task_segments(*)').gte('clock_in',from+'T00:00:00').lte('clock_in',to+'T23:59:59').order('clock_in',{ascending:true}).limit(5000);
+  if(empF!=='all')q=q.eq('emp_id',empF);
+  const{data,error}=await q;
+  if(error)throw error;
+  const projMap={}, empMap={};
+  const empNameOf={}; _profiles.forEach(p=>empNameOf[p.id]=p.name);
+  for(const e of (data||[])){
+    const ename=e.profiles?e.profiles.name:(empNameOf[e.emp_id]||e.emp_id);
+    const segs=(e.task_segments||[]).filter(s=>s.start_time);
+    if(segs.length){for(const s of segs){const end=s.end_time||e.clock_out||new Date().toISOString();const secs=Math.max(0,(new Date(end)-new Date(s.start_time))/1000);if(secs<=0)continue;const cost=s.cost_code||e.cost_code||'(none)';if(projF!=='all'&&cost!==projF)continue;projMap[cost]=(projMap[cost]||0)+secs;empMap[e.emp_id+':'+cost]=(empMap[e.emp_id+':'+cost]||0)+secs;}}
+    else{const secs=workSecs(e);if(secs<=0)continue;const cost=e.cost_code||'(none)';if(projF!=='all'&&cost!==projF)continue;projMap[cost]=(projMap[cost]||0)+secs;empMap[e.emp_id+':'+cost]=(empMap[e.emp_id+':'+cost]||0)+secs;}
+  }
+  const rows=[['Project','Hours']];
+  Object.entries(projMap).sort((a,b)=>b[1]-a[1]).forEach(([c,s])=>rows.push([costLabelFromVal(c),fmtDur(s)]));
+  download(rows.map(r=>r.map(x=>`"${x}"`).join(',')).join('\n'),'report-by-project.csv','text/csv');
+  toast('📥 Report exported');
+}
+
+// ── Clock ─────────────────────────────────────────────────
+async function refreshClock(){
+  if(!ME)return;
+  document.getElementById('clock-name').textContent=MY_PROFILE?MY_PROFILE.name:ME.email;
+  document.getElementById('clock-dept').textContent=MY_PROFILE?MY_PROFILE.department:'';
+  document.getElementById('clock-cost').innerHTML=costCodeOptions('');
+  const{data}=await sb.from('time_entries').select('*, breaks(*), task_segments(*)').eq('emp_id',ME.id).is('clock_out',null).maybeSingle();
+  _myOpenEntry=data||null;
+  _myOpenBreak=_myOpenEntry&&_myOpenEntry.breaks?( _myOpenEntry.breaks.find(b=>!b.break_end)||null):null;
+  _currentSegment=_myOpenEntry&&_myOpenEntry.task_segments?( _myOpenEntry.task_segments.find(s=>!s.end_time)||null):null;
+
+  const isIn=!!_myOpenEntry, ob=!!_myOpenBreak;
+  document.getElementById('clock-dot').className='status-dot '+(ob?'break':isIn?'in':'out');
+  document.getElementById('clock-status').textContent=ob?'On Break':isIn?'Clocked In':'Clocked Out';
+  document.getElementById('clock-since').innerHTML=isIn?`Since: <strong>${fmtTime(_myOpenEntry.clock_in)}</strong>`:'No active session';
+  document.getElementById('clock-worked').textContent=isIn?fmtDur(workSecs(_myOpenEntry))+' worked':'';
+
+  const ct=document.getElementById('clock-current-task');
+  if(_currentSegment){ct.style.display='block';ct.innerHTML=`<strong>Current task:</strong> ${_currentSegment.work_description||'(no description)'}`+(_currentSegment.cost_code?` <span class="badge badge-approved">${_currentSegment.cost_code}</span>`:'')+`<div style="font-size:.72rem;color:var(--text-dim);margin-top:2px">Started ${fmtTime(_currentSegment.start_time)}</div>`;}
+  else{ct.style.display='none';}
+
+  document.getElementById('clock-card').className='card emp-card '+(ob?'on-break':isIn?'clocked-in':'');
+  document.getElementById('btn-in').disabled=isIn;
+  document.getElementById('btn-out').disabled=!isIn;
+  document.getElementById('btn-break').disabled=!isIn;
+  document.getElementById('btn-break').textContent=ob?'✅ End Break':'☕ Break';
+  document.getElementById('btn-newtask').disabled=!isIn;
+  document.getElementById('global-status').textContent=ob?'On Break':isIn?'Clocked In':'Clocked Out';
+  document.getElementById('global-status').className='badge '+(ob?'badge-pending':isIn?'badge-approved':'badge-denied');
+  renderTasks();
+}
+
+// ── Personal Task List ────────────────────────────────────
+async function renderTasks(){
+  const list=document.getElementById('task-list');
+  const empty=document.getElementById('task-empty');
+  if(!ME){list.innerHTML='';empty.style.display='block';return}
+  const{data,error}=await sb.from('tasks').select('*').eq('emp_id',ME.id).order('created_at',{ascending:true});
+  if(error){list.innerHTML='';return}
+  const items=data||[];
+  empty.style.display=items.length?'none':'block';
+  list.innerHTML=items.map(t=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid var(--border);">
+      <input type="checkbox" ${t.completed?'checked':''} onchange="toggleTask('${t.id}',this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:var(--green);flex:none;">
+      <span style="flex:1;font-size:.88rem;${t.completed?'text-decoration:line-through;color:var(--text-dim);':''}">${escapeHtml(t.title)}</span>
+      <button style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:.8rem;" onclick="deleteTask('${t.id}')" title="Delete">🗑️</button>
+    </div>`).join('');
+}
+function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+async function addTask(){
+  const inp=document.getElementById('task-input');
+  const title=inp.value.trim();
+  if(!title)return;
+  if(!ME)return toast('Log in first','amber');
+  const{error}=await sb.from('tasks').insert({emp_id:ME.id,title});
+  if(error)return toast('❌ '+error.message,'red');
+  inp.value='';
+  renderTasks();
+}
+async function toggleTask(id,completed){
+  await sb.from('tasks').update({completed}).eq('id',id);
+  renderTasks();
+}
+async function deleteTask(id){
+  await sb.from('tasks').delete().eq('id',id);
+  renderTasks();
+}
+async function clockIn(){
+  const cost=document.getElementById('clock-cost').value;
+  const work=document.getElementById('clock-work').value.trim();
+  const now=new Date().toISOString();
+  const{data,error}=await sb.from('time_entries').insert({emp_id:ME.id,clock_in:now,cost_code:cost||null,work_description:work||null}).select().single();
+  if(error)return toast('❌ '+error.message,'red');
+  await sb.from('task_segments').insert({entry_id:data.id,start_time:now,cost_code:cost||null,work_description:work||null});
+  document.getElementById('clock-work').value='';
+  toast('✅ Clocked in');refreshClock();
+}
+async function newTask(){
+  if(!_myOpenEntry)return;
+  const cost=document.getElementById('clock-cost').value;
+  const work=document.getElementById('clock-work').value.trim();
+  const now=new Date().toISOString();
+  if(_currentSegment){await sb.from('task_segments').update({end_time:now}).eq('id',_currentSegment.id);}
+  const{error}=await sb.from('task_segments').insert({entry_id:_myOpenEntry.id,start_time:now,cost_code:cost||null,work_description:work||null});
+  if(error)return toast('❌ '+error.message,'red');
+  document.getElementById('clock-work').value='';
+  toast('🔄 Switched to new task');refreshClock();
+}
+async function clockOut(){
+  if(!_myOpenEntry)return;
+  const now=new Date().toISOString();
+  if(_currentSegment){await sb.from('task_segments').update({end_time:now}).eq('id',_currentSegment.id);}
+  const{error}=await sb.from('time_entries').update({clock_out:now}).eq('id',_myOpenEntry.id);
+  if(error)return toast('❌ '+error.message,'red');
+  toast('👋 Clocked out');refreshClock();
+}
+async function toggleBreak(){
+  if(!_myOpenEntry)return;
+  if(_myOpenBreak){
+    await sb.from('breaks').update({break_end:new Date().toISOString()}).eq('id',_myOpenBreak.id);
+    toast('✅ Break ended');
+  }else{
+    await sb.from('breaks').insert({entry_id:_myOpenEntry.id,break_start:new Date().toISOString()});
+    toast('☕ Break started');
+  }
+  refreshClock();
+}
+
+// ── Logs ──────────────────────────────────────────────────
+async function renderLogs(){
+  document.getElementById('logs-emp-name').textContent=MY_PROFILE?`👤 ${MY_PROFILE.name}`:'';
+  const from=document.getElementById('log-from').value;
+  const to=document.getElementById('log-to').value;
+  let q=sb.from('time_entries').select('*, breaks(*), task_segments(*)').eq('emp_id',ME.id).order('clock_in',{ascending:false}).limit(500);
+  if(from)q=q.gte('clock_in',from);
+  if(to)q=q.lte('clock_in',to+'T23:59:59');
+  const{data,error}=await q;
+  const tbody=document.getElementById('log-tbody');
+  if(error||!data||data.length===0){tbody.innerHTML='';document.getElementById('no-logs').style.display='block';return}
+  document.getElementById('no-logs').style.display='none';
+  tbody.innerHTML=data.map(e=>{
+    const bh=(e.breaks||[]).length?(e.breaks.map(b=>`<div class="tag-break">${fmtTime(b.break_start)}→${b.break_end?fmtTime(b.break_end):'…'}</div>`).join('')):'—';
+    const segs=(e.task_segments||[]).sort((a,b)=>a.start_time.localeCompare(b.start_time));
+    const workCol=segs.length?segs.map(s=>`<div style="font-size:.76rem;margin:1px 0"><span style="color:var(--text-dim)">${fmtTime(s.start_time)}→${s.end_time?fmtTime(s.end_time):'…'}</span> ${s.work_description||''}${s.cost_code?` <span class="badge badge-approved" style="font-size:.65rem">${s.cost_code}</span>`:''}</div>`).join(''):'—';
+    return `<tr><td>${fmtDate(e.clock_in)}</td><td class="tag-in">${fmtTime(e.clock_in)}</td><td class="tag-out">${e.clock_out?fmtTime(e.clock_out):'<em style="color:var(--amber)">Active</em>'}</td><td>${bh}</td><td><strong>${fmtDur(workSecs(e))}</strong></td><td colspan="2">${workCol}</td></tr>`;
+  }).join('');
+}
+
+// ── PTO ───────────────────────────────────────────────────
+async function submitPTO(){
+  const start=document.getElementById('pto-start').value;
+  const end=document.getElementById('pto-end').value;
+  const hours=parseFloat(document.getElementById('pto-hours').value);
+  const type=document.getElementById('pto-type').value;
+  const reason=document.getElementById('pto-reason').value;
+  if(!start||!end||!hours)return toast('Fill dates and hours','amber');
+  const annual=parseFloat(MY_PROFILE.pto_hours||120);
+  const year=new Date().getFullYear();
+  const{data:existing}=await sb.from('pto_requests').select('hours').eq('emp_id',ME.id).neq('status','rejected').gte('start_date',year+'-01-01');
+  const used=(existing||[]).reduce((s,p)=>s+parseFloat(p.hours||0),0);
+  if(used+hours>annual)return toast(`⚠️ Only ${annual-used} hr remaining`,'amber');
+  const{error}=await sb.from('pto_requests').insert({emp_id:ME.id,start_date:start,end_date:end,hours,pto_type:type,reason});
+  if(error)return toast('❌ '+error.message,'red');
+  document.getElementById('pto-start').value='';document.getElementById('pto-end').value='';document.getElementById('pto-hours').value='';document.getElementById('pto-reason').value='';
+  toast('📩 PTO submitted');refreshPTO();
+}
+async function refreshPTO(){
+  if(!ME)return;
+  const annual=parseFloat(MY_PROFILE.pto_hours||120);
+  const year=new Date().getFullYear();
+  const{data:reqs}=await sb.from('pto_requests').select('*').eq('emp_id',ME.id).order('created_at',{ascending:false});
+  const active=(reqs||[]).filter(p=>p.status!=='rejected'&&p.start_date>=year+'-01-01');
+  const used=active.reduce((s,p)=>s+parseFloat(p.hours||0),0);
+  document.getElementById('pto-remaining').textContent=`${Math.max(0,annual-used)} hrs`;
+  document.getElementById('pto-detail').textContent=`Used: ${used} hrs · Allocated: ${annual} hrs`;
+  const tb=document.getElementById('pto-tbody');
+  tb.innerHTML=(reqs||[]).map(p=>`<tr><td>${p.start_date}→${p.end_date}</td><td>${p.hours}</td><td><span class="badge badge-${p.pto_type}">${p.pto_type}</span></td><td><span class="badge ${statusBadge(p.status)}">${p.status}</span></td><td style="font-size:.8rem;color:var(--text-dim)">${p.reason||'—'}</td></tr>`).join('');
+}
+
+// ── Admin ─────────────────────────────────────────────────
+async function renderAdmin(){
+  await refreshProfiles();await refreshCostCodes();
+  await adminClockGrid();
+  await adminRenderPTO();
+  await adminRenderCostCodes();
+  await adminRenderEntries();
+  populateAdminSelects();
+}
+function populateAdminSelects(){
+  const empOpts=_profiles.map(p=>`<option value="${p.id}">${p.name} (${p.department})</option>`).join('');
+  document.getElementById('admin-entry-emp').innerHTML='<option value="">Select…</option>'+empOpts;
+  document.getElementById('admin-filter-emp').innerHTML='<option value="all">All Employees</option>'+empOpts;
+  document.getElementById('admin-clock-filter').innerHTML='<option value="all">All Employees</option>'+empOpts;
+  document.getElementById('admin-entry-cost').innerHTML=costCodeOptions('');
+  document.getElementById('admin-roster').innerHTML=_profiles.map(p=>`<span class="emp-chip">${p.name} <span style="color:var(--text-dim);font-size:.7rem">${p.department}${p.is_admin?' · admin':''}</span> <button style="background:none;border:none;cursor:pointer;font-size:.7rem" title="Reset password" onclick="adminResetPassword('${p.id}')">🔑</button> <button style="background:none;border:none;cursor:pointer;font-size:.7rem" title="Remove" onclick="adminRemoveEmployee('${p.id}')">✕</button></span>`).join('');
+}
+async function adminAddEmployee(){
+  const name=document.getElementById('admin-emp-name').value.trim();
+  const dept=document.getElementById('admin-emp-dept').value.trim()||'General';
+  const email=document.getElementById('admin-emp-email').value.trim();
+  const pass=document.getElementById('admin-emp-pass').value||'temp123';
+  if(!name||!email)return toast('Name and email required','amber');
+  const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name,department:dept}}});
+  if(error)return toast('❌ '+error.message,'red');
+  toast(`👤 Added ${name} (temp password: ${pass})`);
+  document.getElementById('admin-emp-name').value='';document.getElementById('admin-emp-dept').value='';document.getElementById('admin-emp-email').value='';document.getElementById('admin-emp-pass').value='';
+  renderAdmin();
+}
+async function adminRemoveEmployee(id){
+  const p=_profiles.find(x=>x.id===id);
+  if(!confirm(`Remove ${p.name}?`))return;
+  await sb.from('profiles').delete().eq('id',id);
+  renderAdmin();
+}
+async function adminResetPassword(id){
+  const p=_profiles.find(x=>x.id===id);
+  if(!p)return;
+  if(!p.email)return toast('No email on file for '+p.name,'amber');
+  if(!confirm(`Send a password-reset email to ${p.name} (${p.email})?`))return;
+  const{error}=await sb.auth.resetPasswordForEmail(p.email);
+  if(error)return toast('❌ '+error.message,'red');
+  toast('📧 Reset email sent to '+p.email);
+}
+async function adminClockGrid(){
+  const filter=document.getElementById('admin-clock-filter').value;
+  const emps=filter==='all'?_profiles:_profiles.filter(p=>p.id===filter);
+  const grid=document.getElementById('admin-clock-grid');
+  grid.innerHTML='';
+  for(const p of emps){
+    const{data:open}=await sb.from('time_entries').select('*, breaks(*)').eq('emp_id',p.id).is('clock_out',null).maybeSingle();
+    const isIn=!!open, ob=isIn&&(open.breaks||[]).some(b=>!b.break_end);
+    grid.insertAdjacentHTML('beforeend',`<div class="card emp-card ${ob?'on-break':isIn?'clocked-in':''}">
+      <div style="font-weight:600">${p.name}</div>
+      <div style="font-size:.75rem;color:var(--text-dim);margin-bottom:6px">${p.department}</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:.8rem"><div class="status-dot ${ob?'break':isIn?'in':'out'}"></div><span>${ob?'On Break':isIn?'In':'Out'}</span></div>
+      ${isIn?`<div class="info-row">Since <strong>${fmtTime(open.clock_in)}</strong> · <strong>${fmtDur(workSecs(open))}</strong></div>`:''}
+      <div style="display:flex;gap:6px;margin-top:10px">
+        <button class="btn btn-in btn-sm" onclick="adminClockIn('${p.id}')" ${isIn?'disabled':''}>▶ In</button>
+        <button class="btn btn-out btn-sm" onclick="adminClockOut('${p.id}')" ${!isIn?'disabled':''}>⏹ Out</button>
+        ${isIn?`<button class="btn btn-break btn-sm" onclick="adminToggleBreak('${p.id}')">${ob?'End ☕':'☕'}</button>`:''}
+      </div>
+      <select id="cost-${p.id}" style="width:100%;margin-top:6px;background:var(--surface2);color:var(--text);border:1px solid var(--border);padding:5px 8px;border-radius:4px;font-size:.75rem">${costCodeOptions('')}</select>
+    </div>`);
+  }
+}
+async function adminClockIn(empId){const cost=document.getElementById('cost-'+empId).value;await sb.from('time_entries').insert({emp_id:empId,clock_in:new Date().toISOString(),cost_code:cost||null});toast('✅ Clocked in');renderAdmin()}
+async function adminClockOut(empId){await sb.from('time_entries').update({clock_out:new Date().toISOString()}).eq('emp_id',empId).is('clock_out',null);toast('👋 Clocked out');renderAdmin()}
+async function adminToggleBreak(empId){
+  const{data:open}=await sb.from('time_entries').select('*, breaks(*)').eq('emp_id',empId).is('clock_out',null).maybeSingle();
+  if(!open)return;
+  const ob=(open.breaks||[]).find(b=>!b.break_end);
+  if(ob)await sb.from('breaks').update({break_end:new Date().toISOString()}).eq('id',ob.id);
+  else await sb.from('breaks').insert({entry_id:open.id,break_start:new Date().toISOString()});
+  renderAdmin();
+}
+async function adminManualEntry(){
+  const empId=document.getElementById('admin-entry-emp').value;
+  const date=document.getElementById('admin-entry-date').value;
+  const tin=document.getElementById('admin-entry-in').value;
+  const tout=document.getElementById('admin-entry-out').value;
+  const cost=document.getElementById('admin-entry-cost').value;
+  if(!empId||!date||!tin)return toast('Employee, date, clock-in required','amber');
+  const inISO=new Date(date+'T'+tin+':00').toISOString();
+  const outISO=tout?new Date(date+'T'+tout+':00').toISOString():null;
+  if(outISO&&outISO<=inISO)return toast('Clock-out after clock-in','amber');
+  await sb.from('time_entries').insert({emp_id:empId,clock_in:inISO,clock_out:outISO,cost_code:cost||null});
+  toast('✅ Entry saved');renderAdmin();
+}
+async function adminRenderEntries(){
+  const filter=document.getElementById('admin-filter-emp').value;
+  const from=document.getElementById('admin-filter-from').value;
+  const to=document.getElementById('admin-filter-to').value;
+  let q=sb.from('time_entries').select('*, profiles(name), task_segments(*)').order('clock_in',{ascending:false}).limit(500);
+  if(filter!=='all')q=q.eq('emp_id',filter);
+  if(from)q=q.gte('clock_in',from);
+  if(to)q=q.lte('clock_in',to+'T23:59:59');
+  const{data,error}=await q;
+  const tb=document.getElementById('admin-entries-tbody');
+  if(error||!data){tb.innerHTML='';return}
+  tb.innerHTML=data.map(e=>{
+    const segs=(e.task_segments||[]).sort((a,b)=>a.start_time.localeCompare(b.start_time));
+    const workCol=segs.length?segs.map(s=>`<div style="font-size:.74rem;margin:1px 0"><span style="color:var(--text-dim)">${fmtTime(s.start_time)}→${s.end_time?fmtTime(s.end_time):'…'}</span> ${s.work_description||''}${s.cost_code?` <span class="badge badge-approved" style="font-size:.62rem">${s.cost_code}</span>`:''}</div>`).join(''):'—';
+    return `<tr><td>${e.profiles?e.profiles.name:'—'}</td><td>${fmtDate(e.clock_in)}</td><td class="tag-in">${fmtTime(e.clock_in)}</td><td class="tag-out">${e.clock_out?fmtTime(e.clock_out):'Active'}</td><td>${fmtDur(workSecs(e))}</td><td>${e.cost_code||'—'}</td><td>${workCol}</td><td><button style="background:none;border:none;cursor:pointer" onclick="adminEditEntry('${e.id}')">✏️</button><button style="background:none;border:none;cursor:pointer" onclick="adminDeleteEntry('${e.id}')">🗑️</button></td></tr>`;
+  }).join('');
+}
+async function adminDeleteEntry(id){if(!confirm('Delete entry?'))return;await sb.from('time_entries').delete().eq('id',id);renderAdmin()}
+
+// Edit modal
+let _editingId=null;
+function isoDate(i){if(!i)return '';const d=new Date(i);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function isoTime(i){if(!i)return '';const d=new Date(i);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+async function adminEditEntry(id){
+  _editingId=id;
+  document.getElementById('edit-entry-emp').innerHTML=_profiles.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  document.getElementById('edit-entry-cost').innerHTML=costCodeOptions('');
+  const{data}=await sb.from('time_entries').select('*').eq('id',id).single();
+  if(!data)return;
+  document.getElementById('edit-entry-emp').value=data.emp_id;
+  document.getElementById('edit-entry-date').value=isoDate(data.clock_in);
+  document.getElementById('edit-entry-in').value=isoTime(data.clock_in);
+  document.getElementById('edit-entry-out').value=data.clock_out?isoTime(data.clock_out):'';
+  document.getElementById('edit-entry-cost').value=data.cost_code||'';
+  document.getElementById('edit-modal').style.display='flex';
+}
+function closeEditModal(){document.getElementById('edit-modal').style.display='none';_editingId=null}
+async function adminSaveEdit(){
+  if(!_editingId)return;
+  const empId=document.getElementById('edit-entry-emp').value;
+  const date=document.getElementById('edit-entry-date').value;
+  const tin=document.getElementById('edit-entry-in').value;
+  const tout=document.getElementById('edit-entry-out').value;
+  const cost=document.getElementById('edit-entry-cost').value;
+  if(!empId||!date||!tin)return toast('Required fields','amber');
+  const inISO=new Date(date+'T'+tin+':00').toISOString(), outISO=tout?new Date(date+'T'+tout+':00').toISOString():null;
+  if(outISO&&outISO<=inISO)return toast('Clock-out after clock-in','amber');
+  await sb.from('time_entries').update({emp_id:empId,clock_in:inISO,clock_out:outISO,cost_code:cost||null}).eq('id',_editingId);
+  closeEditModal();toast('✅ Updated');renderAdmin();
+}
+
+// Admin PTO
+async function adminRenderPTO(){
+  const{data:reqs}=await sb.from('pto_requests').select('*, profiles(name)').order('created_at',{ascending:false});
+  const pending=(reqs||[]).filter(p=>p.status==='pending');
+  document.getElementById('admin-pto-queue').innerHTML=pending.length===0?'<div style="color:var(--text-dim);font-size:.8rem">No pending requests.</div>':pending.map(p=>`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:6px"><div style="font-weight:600;font-size:.82rem">${p.profiles?p.profiles.name:'—'} · ${p.hours}h · <span class="badge badge-${p.pto_type}">${p.pto_type}</span></div><div style="font-size:.75rem;color:var(--text-dim)">${p.start_date}→${p.end_date}</div>${p.reason?`<div style="font-size:.72rem;color:var(--text-dim)">💬 ${p.reason}</div>`:''}<div style="display:flex;gap:4px;margin-top:4px"><button class="btn btn-in btn-sm" onclick="adminPTOAction('${p.id}','approved')" style="flex:1;font-size:.7rem;padding:3px 6px">✅ Approve</button><button class="btn btn-out btn-sm" onclick="adminPTOAction('${p.id}','rejected')" style="flex:1;font-size:.7rem;padding:3px 6px">❌ Reject</button></div></div>`).join('');
+  const year=new Date().getFullYear();
+  document.getElementById('admin-pto-allocations').innerHTML=_profiles.map(p=>{
+    const used=(reqs||[]).filter(r=>r.emp_id===p.id&&r.status!=='rejected'&&r.start_date>=year+'-01-01').reduce((s,r)=>s+parseFloat(r.hours||0),0);
+    const rem=parseFloat(p.pto_hours||120)-used;
+    return `<div style="display:flex;justify-content:space-between;padding:6px 8px;border-bottom:1px solid var(--border);font-size:.8rem"><span>${p.name}</span><span style="cursor:pointer;font-weight:600;color:${rem<=8?'var(--orange)':'var(--accent)'}" onclick="adminSetPTO('${p.id}')">${rem}/${p.pto_hours||120} hrs</span></div>`;
+  }).join('');
+}
+async function adminPTOAction(id,status){await sb.from('pto_requests').update({status}).eq('id',id);toast(status==='approved'?'✅ Approved':'❌ Rejected');renderAdmin()}
+async function adminSetPTO(id){const p=_profiles.find(x=>x.id===id);const v=prompt(`PTO hours for ${p.name}:`,p.pto_hours||120);if(v===null)return;const h=parseFloat(v);if(isNaN(h)||h<1)return;await sb.from('profiles').update({pto_hours:h}).eq('id',id);renderAdmin()}
+
+// Admin cost codes
+async function adminAddCostCode(){
+  const job=document.getElementById('admin-cost-job').value.trim();
+  const phase=document.getElementById('admin-cost-phase').value.trim();
+  const name=document.getElementById('admin-cost-name').value.trim();
+  if(!job||!phase)return toast('Job and phase required','amber');
+  await sb.from('cost_codes').insert({job,phase,name});
+  document.getElementById('admin-cost-job').value='';document.getElementById('admin-cost-phase').value='';document.getElementById('admin-cost-name').value='';
+  toast('🏷️ Added');renderAdmin();
+}
+async function adminRemoveCostCode(id){await sb.from('cost_codes').delete().eq('id',id);renderAdmin()}
+async function adminRenderCostCodes(){
+  const el=document.getElementById('admin-cost-list');
+  el.innerHTML=_costCodes.map(c=>`<span class="emp-chip">${c.job}-${c.phase} <span style="color:var(--text-dim);font-size:.7rem">${c.name}</span> <button style="background:none;border:none;cursor:pointer;font-size:.7rem" onclick="adminRemoveCostCode('${c.id}')">✕</button></span>`).join('');
+}
+
+// ── Export ────────────────────────────────────────────────
+function download(content,name,type){const b=new Blob([content],{type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();URL.revokeObjectURL(a.href)}
+async function exportCSV(){
+  const{data}=await sb.from('time_entries').select('*').eq('emp_id',ME.id).order('clock_in',{ascending:false}).limit(1000);
+  const rows=[['Date','Clock In','Clock Out','Work Time','Cost Code','Working On']];
+  (data||[]).forEach(e=>rows.push([e.clock_in.slice(0,10),fmtTime(e.clock_in),e.clock_out?fmtTime(e.clock_out):'Active',fmtDur(workSecs(e)),e.cost_code||'',e.work_description||'']));
+  download(rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n'),'timetracker.csv','text/csv');
+  toast('📥 Exported');
+}
+async function adminExportCSV(){
+  const{data}=await sb.from('time_entries').select('*, profiles(name)').order('clock_in',{ascending:false}).limit(2000);
+  const rows=[['Employee','Date','Clock In','Clock Out','Work Time','Cost Code','Working On']];
+  (data||[]).forEach(e=>rows.push([e.profiles?e.profiles.name:'',e.clock_in.slice(0,10),fmtTime(e.clock_in),e.clock_out?fmtTime(e.clock_out):'Active',fmtDur(workSecs(e)),e.cost_code||'',e.work_description||'']));
+  download(rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n'),'timetracker-all.csv','text/csv');
+  toast('📥 Exported');
+}
+
+// ── Live clock ────────────────────────────────────────────
+function tick(){const n=new Date();document.getElementById('sidebar-clock').textContent=n.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});document.getElementById('sidebar-date').textContent=n.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}
+setInterval(tick,1000);tick();
+
+// ── Realtime (admin dashboard auto-updates) ───────────────
+sb.channel('realtime').on('postgres_changes',{event:'*',schema:'public',table:'time_entries'},()=>{ if(MY_PROFILE&&MY_PROFILE.is_admin&&document.getElementById('page-admin').classList.contains('active'))renderAdmin(); }).subscribe();
+
+init();
+</script>
+</body>
+</html>
