@@ -892,11 +892,11 @@ async function adminClockGrid(){
   const filter=document.getElementById('admin-clock-filter').value;
   const emps=filter==='all'?_profiles:_profiles.filter(p=>p.id===filter);
   const grid=document.getElementById('admin-clock-grid');
-  grid.innerHTML='';
+  let html='';
   for(const p of emps){
     const{data:open}=await sb.from('time_entries').select('*, breaks(*)').eq('emp_id',p.id).is('clock_out',null).maybeSingle();
     const isIn=!!open, ob=isIn&&(open.breaks||[]).some(b=>!b.break_end);
-    grid.insertAdjacentHTML('beforeend',`<div class="card emp-card ${ob?'on-break':isIn?'clocked-in':''}">
+    html+=`<div class="card emp-card ${ob?'on-break':isIn?'clocked-in':''}">
       <div style="font-weight:600">${esc(p.name)}</div>
       <div style="font-size:.75rem;color:var(--text-dim);margin-bottom:6px">${esc(p.department)}</div>
       <div style="display:flex;align-items:center;gap:6px;font-size:.8rem"><div class="status-dot ${ob?'break':isIn?'in':'out'}"></div><span>${ob?'On Break':isIn?'In':'Out'}</span></div>
@@ -907,8 +907,9 @@ async function adminClockGrid(){
         ${isIn?`<button class="btn btn-break btn-sm" onclick="adminToggleBreak('${esc(p.id)}')">${ob?'End ☕':'☕'}</button>`:''}
       </div>
       <select id="cost-${esc(p.id)}" style="width:100%;margin-top:6px;background:var(--surface2);color:var(--text);border:1px solid var(--border);padding:5px 8px;border-radius:4px;font-size:.75rem">${costCodeOptions('')}</select>
-    </div>`);
+    </div>`;
   }
+  grid.innerHTML = html;
 }
 async function adminClockIn(empId){const cost=document.getElementById('cost-'+empId).value;await sb.from('time_entries').insert({emp_id:empId,clock_in:new Date().toISOString(),cost_code:cost||null});toast('✅ Clocked in');renderAdmin()}
 async function adminClockOut(empId){await sb.from('time_entries').update({clock_out:new Date().toISOString()}).eq('emp_id',empId).is('clock_out',null);toast('👋 Clocked out');renderAdmin()}
