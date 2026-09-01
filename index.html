@@ -378,6 +378,14 @@ let ME = null;       // auth user
 let MY_PROFILE = null;
 
 // ── Helpers ───────────────────────────────────────────────
+// Escapes text for interpolation into an innerHTML template literal.
+// Also covers quoted HTML attribute values (both " and ' are encoded).
+function esc(v){
+  if(v===null||v===undefined)return '';
+  return String(v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function toast(msg,color='green'){const c=document.getElementById('toast-container');const el=document.createElement('div');el.className='toast';el.style.borderColor=`var(--${color})`;el.style.color=`var(--${color})`;el.textContent=msg;c.appendChild(el);setTimeout(()=>el.remove(),3000)}
 function fmtTime(iso){return iso?new Date(iso).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}) :'--'}
@@ -395,7 +403,7 @@ let _reportChart=null, _chartMode='proj', _lastProjMap=null, _lastEmpMap=null;
 async function refreshProfiles(){const{data,error}=await sb.from('profiles').select('*').order('name');if(!error)_profiles=data||[]}
 async function refreshCostCodes(){const{data,error}=await sb.from('cost_codes').select('*').order('job');if(!error){_costCodes=data||[];window._costCodes=_costCodes}}
 
-function costCodeOptions(selected){return '<option value="">Select cost code…</option>'+_costCodes.map(c=>`<option value="${c.job}-${c.phase}" ${(c.job+'-'+c.phase)===selected?'selected':''}>${c.job}-${c.phase} ${c.name}</option>`).join('')}
+function costCodeOptions(selected){return '<option value="">Select cost code…</option>'+_costCodes.map(c=>`<option value="${esc(c.job)}-${esc(c.phase)}" ${(c.job+'-'+c.phase)===selected?'selected':''}>${esc(c.job)}-${esc(c.phase)} ${esc(c.name)}</option>`).join('')}
 
 // ── Auth ──────────────────────────────────────────────────
 async function init(){
@@ -466,9 +474,9 @@ function initReportFilters(){
   document.getElementById('report-from').value=first.toISOString().slice(0,10);
   document.getElementById('report-to').value=now.toISOString().slice(0,10);
   const empSel=document.getElementById('report-emp');
-  empSel.innerHTML='<option value="all">All Employees</option>'+_profiles.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  empSel.innerHTML='<option value="all">All Employees</option>'+_profiles.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
   const projSel=document.getElementById('report-proj');
-  projSel.innerHTML='<option value="all">All Projects</option>'+_costCodes.map(c=>`<option value="${c.job}-${c.phase}">${c.job}-${c.phase} ${c.name}</option>`).join('');
+  projSel.innerHTML='<option value="all">All Projects</option>'+_costCodes.map(c=>`<option value="${esc(c.job)}-${esc(c.phase)}">${esc(c.job)}-${esc(c.phase)} ${esc(c.name)}</option>`).join('');
 }
 function isoDateLocal(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function reportRange(range){
@@ -565,16 +573,16 @@ async function renderReport(){
   const projTbody=document.getElementById('report-proj-tbody');
   const projRows=Object.entries(projMap).sort((a,b)=>b[1].secs-a[1].secs);
   projTbody.innerHTML=projRows.length?projRows.map(([cost,p])=>{
-    const bd=Object.entries(p.empBreakdown).sort((a,b)=>b[1]-a[1]).map(([n,s])=>`<div style="font-size:.75rem;margin:1px 0"><span style="color:var(--text-dim)">${n}</span>: ${fmtDur(s)}</div>`).join('');
-    return `<tr><td><strong>${costLabelFromVal(cost)}</strong></td><td><strong>${fmtDur(p.secs)}</strong></td><td>${p.workers.size}</td><td>${bd}</td></tr>`;
+    const bd=Object.entries(p.empBreakdown).sort((a,b)=>b[1]-a[1]).map(([n,s])=>`<div style="font-size:.75rem;margin:1px 0"><span style="color:var(--text-dim)">${esc(n)}</span>: ${fmtDur(s)}</div>`).join('');
+    return `<tr><td><strong>${esc(costLabelFromVal(cost))}</strong></td><td><strong>${fmtDur(p.secs)}</strong></td><td>${p.workers.size}</td><td>${bd}</td></tr>`;
   }).join(''):'<tr><td colspan="4" style="color:var(--text-dim)">No data.</td></tr>';
 
   // By employee table
   const empTbody=document.getElementById('report-emp-tbody');
   const empRows=Object.values(empMap).sort((a,b)=>b.secs-a.secs);
   empTbody.innerHTML=empRows.length?empRows.map(e=>{
-    const bd=Object.entries(e.projBreakdown).sort((a,b)=>b[1]-a[1]).map(([c,s])=>`<div style="font-size:.75rem;margin:1px 0"><span style="color:var(--text-dim)">${costLabelFromVal(c)}</span>: ${fmtDur(s)}</div>`).join('');
-    return `<tr><td><strong>${e.name}</strong></td><td><strong>${fmtDur(e.secs)}</strong></td><td>${e.projects.size}</td><td>${bd}</td></tr>`;
+    const bd=Object.entries(e.projBreakdown).sort((a,b)=>b[1]-a[1]).map(([c,s])=>`<div style="font-size:.75rem;margin:1px 0"><span style="color:var(--text-dim)">${esc(costLabelFromVal(c))}</span>: ${fmtDur(s)}</div>`).join('');
+    return `<tr><td><strong>${esc(e.name)}</strong></td><td><strong>${fmtDur(e.secs)}</strong></td><td>${e.projects.size}</td><td>${bd}</td></tr>`;
   }).join(''):'<tr><td colspan="4" style="color:var(--text-dim)">No data.</td></tr>';
 
   // Store for chart + draw
@@ -695,7 +703,7 @@ async function refreshClock(){
   document.getElementById('clock-worked').textContent=isIn?fmtDur(workSecs(_myOpenEntry))+' worked':'';
 
   const ct=document.getElementById('clock-current-task');
-  if(_currentSegment){ct.style.display='block';ct.innerHTML=`<strong>Current task:</strong> ${_currentSegment.work_description||'(no description)'}`+(_currentSegment.cost_code?` <span class="badge badge-approved">${_currentSegment.cost_code}</span>`:'')+`<div style="font-size:.72rem;color:var(--text-dim);margin-top:2px">Started ${fmtTime(_currentSegment.start_time)}</div>`;}
+  if(_currentSegment){ct.style.display='block';ct.innerHTML=`<strong>Current task:</strong> ${esc(_currentSegment.work_description)||'(no description)'}`+(_currentSegment.cost_code?` <span class="badge badge-approved">${esc(_currentSegment.cost_code)}</span>`:'')+`<div style="font-size:.72rem;color:var(--text-dim);margin-top:2px">Started ${fmtTime(_currentSegment.start_time)}</div>`;}
   else{ct.style.display='none';}
 
   document.getElementById('clock-card').className='card emp-card '+(ob?'on-break':isIn?'clocked-in':'');
@@ -720,12 +728,12 @@ async function renderTasks(){
   empty.style.display=items.length?'none':'block';
   list.innerHTML=items.map(t=>`
     <div style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid var(--border);">
-      <input type="checkbox" ${t.completed?'checked':''} onchange="toggleTask('${t.id}',this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:var(--green);flex:none;">
+      <input type="checkbox" ${t.completed?'checked':''} onchange="toggleTask('${esc(t.id)}',this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:var(--green);flex:none;">
       <span style="flex:1;font-size:.88rem;${t.completed?'text-decoration:line-through;color:var(--text-dim);':''}">${escapeHtml(t.title)}</span>
-      <button style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:.8rem;" onclick="deleteTask('${t.id}')" title="Delete">🗑️</button>
+      <button style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:.8rem;" onclick="deleteTask('${esc(t.id)}')" title="Delete">🗑️</button>
     </div>`).join('');
 }
-function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+const escapeHtml = esc;
 async function addTask(){
   const inp=document.getElementById('task-input');
   const title=inp.value.trim();
@@ -800,7 +808,7 @@ async function renderLogs(){
   tbody.innerHTML=data.map(e=>{
     const bh=(e.breaks||[]).length?(e.breaks.map(b=>`<div class="tag-break">${fmtTime(b.break_start)}→${b.break_end?fmtTime(b.break_end):'…'}</div>`).join('')):'—';
     const segs=(e.task_segments||[]).sort((a,b)=>a.start_time.localeCompare(b.start_time));
-    const workCol=segs.length?segs.map(s=>`<div style="font-size:.76rem;margin:1px 0"><span style="color:var(--text-dim)">${fmtTime(s.start_time)}→${s.end_time?fmtTime(s.end_time):'…'}</span> ${s.work_description||''}${s.cost_code?` <span class="badge badge-approved" style="font-size:.65rem">${s.cost_code}</span>`:''}</div>`).join(''):'—';
+    const workCol=segs.length?segs.map(s=>`<div style="font-size:.76rem;margin:1px 0"><span style="color:var(--text-dim)">${fmtTime(s.start_time)}→${s.end_time?fmtTime(s.end_time):'…'}</span> ${esc(s.work_description)}${s.cost_code?` <span class="badge badge-approved" style="font-size:.65rem">${esc(s.cost_code)}</span>`:''}</div>`).join(''):'—';
     return `<tr><td>${fmtDate(e.clock_in)}</td><td class="tag-in">${fmtTime(e.clock_in)}</td><td class="tag-out">${e.clock_out?fmtTime(e.clock_out):'<em style="color:var(--amber)">Active</em>'}</td><td>${bh}</td><td><strong>${fmtDur(workSecs(e))}</strong></td><td colspan="2">${workCol}</td></tr>`;
   }).join('');
 }
@@ -833,7 +841,7 @@ async function refreshPTO(){
   document.getElementById('pto-remaining').textContent=`${Math.max(0,annual-used)} hrs`;
   document.getElementById('pto-detail').textContent=`Used: ${used} hrs · Allocated: ${annual} hrs`;
   const tb=document.getElementById('pto-tbody');
-  tb.innerHTML=(reqs||[]).map(p=>`<tr><td>${p.start_date}→${p.end_date}</td><td>${p.hours}</td><td><span class="badge badge-${p.pto_type}">${p.pto_type}</span></td><td><span class="badge ${statusBadge(p.status)}">${p.status}</span></td><td style="font-size:.8rem;color:var(--text-dim)">${p.reason||'—'}</td></tr>`).join('');
+  tb.innerHTML=(reqs||[]).map(p=>`<tr><td>${esc(p.start_date)}→${esc(p.end_date)}</td><td>${esc(p.hours)}</td><td><span class="badge badge-${esc(p.pto_type)}">${esc(p.pto_type)}</span></td><td><span class="badge ${statusBadge(p.status)}">${esc(p.status)}</span></td><td style="font-size:.8rem;color:var(--text-dim)">${esc(p.reason)||'—'}</td></tr>`).join('');
 }
 
 // ── Admin ─────────────────────────────────────────────────
@@ -846,12 +854,12 @@ async function renderAdmin(){
   populateAdminSelects();
 }
 function populateAdminSelects(){
-  const empOpts=_profiles.map(p=>`<option value="${p.id}">${p.name} (${p.department})</option>`).join('');
+  const empOpts=_profiles.map(p=>`<option value="${esc(p.id)}">${esc(p.name)} (${esc(p.department)})</option>`).join('');
   document.getElementById('admin-entry-emp').innerHTML='<option value="">Select…</option>'+empOpts;
   document.getElementById('admin-filter-emp').innerHTML='<option value="all">All Employees</option>'+empOpts;
   document.getElementById('admin-clock-filter').innerHTML='<option value="all">All Employees</option>'+empOpts;
   document.getElementById('admin-entry-cost').innerHTML=costCodeOptions('');
-  document.getElementById('admin-roster').innerHTML=_profiles.map(p=>`<span class="emp-chip">${p.name} <span style="color:var(--text-dim);font-size:.7rem">${p.department}${p.is_admin?' · admin':''}</span> <button style="background:none;border:none;cursor:pointer;font-size:.7rem" title="Reset password" onclick="adminResetPassword('${p.id}')">🔑</button> <button style="background:none;border:none;cursor:pointer;font-size:.7rem" title="Remove" onclick="adminRemoveEmployee('${p.id}')">✕</button></span>`).join('');
+  document.getElementById('admin-roster').innerHTML=_profiles.map(p=>`<span class="emp-chip">${esc(p.name)} <span style="color:var(--text-dim);font-size:.7rem">${esc(p.department)}${p.is_admin?' · admin':''}</span> <button style="background:none;border:none;cursor:pointer;font-size:.7rem" title="Reset password" onclick="adminResetPassword('${esc(p.id)}')">🔑</button> <button style="background:none;border:none;cursor:pointer;font-size:.7rem" title="Remove" onclick="adminRemoveEmployee('${esc(p.id)}')">✕</button></span>`).join('');
 }
 async function adminAddEmployee(){
   const name=document.getElementById('admin-emp-name').value.trim();
@@ -889,16 +897,16 @@ async function adminClockGrid(){
     const{data:open}=await sb.from('time_entries').select('*, breaks(*)').eq('emp_id',p.id).is('clock_out',null).maybeSingle();
     const isIn=!!open, ob=isIn&&(open.breaks||[]).some(b=>!b.break_end);
     grid.insertAdjacentHTML('beforeend',`<div class="card emp-card ${ob?'on-break':isIn?'clocked-in':''}">
-      <div style="font-weight:600">${p.name}</div>
-      <div style="font-size:.75rem;color:var(--text-dim);margin-bottom:6px">${p.department}</div>
+      <div style="font-weight:600">${esc(p.name)}</div>
+      <div style="font-size:.75rem;color:var(--text-dim);margin-bottom:6px">${esc(p.department)}</div>
       <div style="display:flex;align-items:center;gap:6px;font-size:.8rem"><div class="status-dot ${ob?'break':isIn?'in':'out'}"></div><span>${ob?'On Break':isIn?'In':'Out'}</span></div>
       ${isIn?`<div class="info-row">Since <strong>${fmtTime(open.clock_in)}</strong> · <strong>${fmtDur(workSecs(open))}</strong></div>`:''}
       <div style="display:flex;gap:6px;margin-top:10px">
-        <button class="btn btn-in btn-sm" onclick="adminClockIn('${p.id}')" ${isIn?'disabled':''}>▶ In</button>
-        <button class="btn btn-out btn-sm" onclick="adminClockOut('${p.id}')" ${!isIn?'disabled':''}>⏹ Out</button>
-        ${isIn?`<button class="btn btn-break btn-sm" onclick="adminToggleBreak('${p.id}')">${ob?'End ☕':'☕'}</button>`:''}
+        <button class="btn btn-in btn-sm" onclick="adminClockIn('${esc(p.id)}')" ${isIn?'disabled':''}>▶ In</button>
+        <button class="btn btn-out btn-sm" onclick="adminClockOut('${esc(p.id)}')" ${!isIn?'disabled':''}>⏹ Out</button>
+        ${isIn?`<button class="btn btn-break btn-sm" onclick="adminToggleBreak('${esc(p.id)}')">${ob?'End ☕':'☕'}</button>`:''}
       </div>
-      <select id="cost-${p.id}" style="width:100%;margin-top:6px;background:var(--surface2);color:var(--text);border:1px solid var(--border);padding:5px 8px;border-radius:4px;font-size:.75rem">${costCodeOptions('')}</select>
+      <select id="cost-${esc(p.id)}" style="width:100%;margin-top:6px;background:var(--surface2);color:var(--text);border:1px solid var(--border);padding:5px 8px;border-radius:4px;font-size:.75rem">${costCodeOptions('')}</select>
     </div>`);
   }
 }
@@ -938,8 +946,8 @@ async function adminRenderEntries(){
   if(error||!data){tb.innerHTML='';return}
   tb.innerHTML=data.map(e=>{
     const segs=(e.task_segments||[]).sort((a,b)=>a.start_time.localeCompare(b.start_time));
-    const workCol=segs.length?segs.map(s=>`<div style="font-size:.74rem;margin:1px 0"><span style="color:var(--text-dim)">${fmtTime(s.start_time)}→${s.end_time?fmtTime(s.end_time):'…'}</span> ${s.work_description||''}${s.cost_code?` <span class="badge badge-approved" style="font-size:.62rem">${s.cost_code}</span>`:''}</div>`).join(''):'—';
-    return `<tr><td>${e.profiles?e.profiles.name:'—'}</td><td>${fmtDate(e.clock_in)}</td><td class="tag-in">${fmtTime(e.clock_in)}</td><td class="tag-out">${e.clock_out?fmtTime(e.clock_out):'Active'}</td><td>${fmtDur(workSecs(e))}</td><td>${e.cost_code||'—'}</td><td>${workCol}</td><td><button style="background:none;border:none;cursor:pointer" onclick="adminEditEntry('${e.id}')">✏️</button><button style="background:none;border:none;cursor:pointer" onclick="adminDeleteEntry('${e.id}')">🗑️</button></td></tr>`;
+    const workCol=segs.length?segs.map(s=>`<div style="font-size:.74rem;margin:1px 0"><span style="color:var(--text-dim)">${fmtTime(s.start_time)}→${s.end_time?fmtTime(s.end_time):'…'}</span> ${esc(s.work_description)}${s.cost_code?` <span class="badge badge-approved" style="font-size:.62rem">${esc(s.cost_code)}</span>`:''}</div>`).join(''):'—';
+    return `<tr><td>${e.profiles?esc(e.profiles.name):'—'}</td><td>${fmtDate(e.clock_in)}</td><td class="tag-in">${fmtTime(e.clock_in)}</td><td class="tag-out">${e.clock_out?fmtTime(e.clock_out):'Active'}</td><td>${fmtDur(workSecs(e))}</td><td>${esc(e.cost_code)||'—'}</td><td>${workCol}</td><td><button style="background:none;border:none;cursor:pointer" onclick="adminEditEntry('${esc(e.id)}')">✏️</button><button style="background:none;border:none;cursor:pointer" onclick="adminDeleteEntry('${esc(e.id)}')">🗑️</button></td></tr>`;
   }).join('');
 }
 async function adminDeleteEntry(id){if(!confirm('Delete entry?'))return;await sb.from('time_entries').delete().eq('id',id);renderAdmin()}
@@ -950,7 +958,7 @@ function isoDate(i){if(!i)return '';const d=new Date(i);return d.getFullYear()+'
 function isoTime(i){if(!i)return '';const d=new Date(i);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
 async function adminEditEntry(id){
   _editingId=id;
-  document.getElementById('edit-entry-emp').innerHTML=_profiles.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  document.getElementById('edit-entry-emp').innerHTML=_profiles.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
   document.getElementById('edit-entry-cost').innerHTML=costCodeOptions('');
   const{data}=await sb.from('time_entries').select('*').eq('id',id).single();
   if(!data)return;
@@ -980,12 +988,12 @@ async function adminSaveEdit(){
 async function adminRenderPTO(){
   const{data:reqs}=await sb.from('pto_requests').select('*, profiles(name)').order('created_at',{ascending:false});
   const pending=(reqs||[]).filter(p=>p.status==='pending');
-  document.getElementById('admin-pto-queue').innerHTML=pending.length===0?'<div style="color:var(--text-dim);font-size:.8rem">No pending requests.</div>':pending.map(p=>`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:6px"><div style="font-weight:600;font-size:.82rem">${p.profiles?p.profiles.name:'—'} · ${p.hours}h · <span class="badge badge-${p.pto_type}">${p.pto_type}</span></div><div style="font-size:.75rem;color:var(--text-dim)">${p.start_date}→${p.end_date}</div>${p.reason?`<div style="font-size:.72rem;color:var(--text-dim)">💬 ${p.reason}</div>`:''}<div style="display:flex;gap:4px;margin-top:4px"><button class="btn btn-in btn-sm" onclick="adminPTOAction('${p.id}','approved')" style="flex:1;font-size:.7rem;padding:3px 6px">✅ Approve</button><button class="btn btn-out btn-sm" onclick="adminPTOAction('${p.id}','rejected')" style="flex:1;font-size:.7rem;padding:3px 6px">❌ Reject</button></div></div>`).join('');
+  document.getElementById('admin-pto-queue').innerHTML=pending.length===0?'<div style="color:var(--text-dim);font-size:.8rem">No pending requests.</div>':pending.map(p=>`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:6px"><div style="font-weight:600;font-size:.82rem">${p.profiles?esc(p.profiles.name):'—'} · ${esc(p.hours)}h · <span class="badge badge-${esc(p.pto_type)}">${esc(p.pto_type)}</span></div><div style="font-size:.75rem;color:var(--text-dim)">${esc(p.start_date)}→${esc(p.end_date)}</div>${p.reason?`<div style="font-size:.72rem;color:var(--text-dim)">💬 ${esc(p.reason)}</div>`:''}<div style="display:flex;gap:4px;margin-top:4px"><button class="btn btn-in btn-sm" onclick="adminPTOAction('${esc(p.id)}','approved')" style="flex:1;font-size:.7rem;padding:3px 6px">✅ Approve</button><button class="btn btn-out btn-sm" onclick="adminPTOAction('${esc(p.id)}','rejected')" style="flex:1;font-size:.7rem;padding:3px 6px">❌ Reject</button></div></div>`).join('');
   const year=new Date().getFullYear();
   document.getElementById('admin-pto-allocations').innerHTML=_profiles.map(p=>{
     const used=(reqs||[]).filter(r=>r.emp_id===p.id&&r.status!=='rejected'&&r.start_date>=year+'-01-01').reduce((s,r)=>s+parseFloat(r.hours||0),0);
     const rem=parseFloat(p.pto_hours||120)-used;
-    return `<div style="display:flex;justify-content:space-between;padding:6px 8px;border-bottom:1px solid var(--border);font-size:.8rem"><span>${p.name}</span><span style="cursor:pointer;font-weight:600;color:${rem<=8?'var(--orange)':'var(--accent)'}" onclick="adminSetPTO('${p.id}')">${rem}/${p.pto_hours||120} hrs</span></div>`;
+    return `<div style="display:flex;justify-content:space-between;padding:6px 8px;border-bottom:1px solid var(--border);font-size:.8rem"><span>${esc(p.name)}</span><span style="cursor:pointer;font-weight:600;color:${rem<=8?'var(--orange)':'var(--accent)'}" onclick="adminSetPTO('${esc(p.id)}')">${rem}/${esc(p.pto_hours||120)} hrs</span></div>`;
   }).join('');
 }
 async function adminPTOAction(id,status){await sb.from('pto_requests').update({status}).eq('id',id);toast(status==='approved'?'✅ Approved':'❌ Rejected');renderAdmin()}
@@ -1004,7 +1012,7 @@ async function adminAddCostCode(){
 async function adminRemoveCostCode(id){await sb.from('cost_codes').delete().eq('id',id);renderAdmin()}
 async function adminRenderCostCodes(){
   const el=document.getElementById('admin-cost-list');
-  el.innerHTML=_costCodes.map(c=>`<span class="emp-chip">${c.job}-${c.phase} <span style="color:var(--text-dim);font-size:.7rem">${c.name}</span> <button style="background:none;border:none;cursor:pointer;font-size:.7rem" onclick="adminRemoveCostCode('${c.id}')">✕</button></span>`).join('');
+  el.innerHTML=_costCodes.map(c=>`<span class="emp-chip">${esc(c.job)}-${esc(c.phase)} <span style="color:var(--text-dim);font-size:.7rem">${esc(c.name)}</span> <button style="background:none;border:none;cursor:pointer;font-size:.7rem" onclick="adminRemoveCostCode('${esc(c.id)}')">✕</button></span>`).join('');
 }
 
 // ── Export ────────────────────────────────────────────────
